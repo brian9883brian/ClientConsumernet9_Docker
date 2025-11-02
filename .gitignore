@@ -1,0 +1,97 @@
+# ============================================
+# .NET general
+# ============================================
+bin/
+obj/
+out/
+*.exe
+*.dll
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.pdb
+
+# ============================================
+# Visual Studio / Rider
+# ============================================
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ============================================
+# Build & publish
+# ============================================
+*.publish.xml
+project.lock.json
+project.fragment.lock.json
+artifacts/
+PublishProfiles/
+*.csproj.user
+
+# ============================================
+# Configuration & Secrets
+# ============================================
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+.env
+.env.*
+
+# ============================================
+# Logs & Temp
+# ============================================
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+~$*
+*.ncrunchsolution
+*.ncrunchproject
+TestResult*/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# ============================================
+# OS files
+# ============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Docker
+# ============================================
+**/docker-compose.override.yml
+**/docker-compose.local.yml
+*.tar
+*.pid
+
+# ============================================
+# Node / Vue (si tienes frontend)
+# ============================================
+node_modules/
+dist/
+*.env.local
+*.env.development
+*.env.production
+*.npmrc
+package-lock.json
+yarn.lock
+
+# ============================================
+# Misc
+# ============================================
+*.nupkg
+*.snupkg
+.nuget/
+*.publishsettings
+*.DS_Store
