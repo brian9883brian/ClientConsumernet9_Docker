@@ -1,96 +1,68 @@
-﻿using ClientConsumerOrder.Consumers;
-using ClientConsumerOrder.Hubs;
-using ClientConsumerOrder.Services;
-using MassTransit;
-using System.Text.Json;
+﻿using ClientConsumerOrder.Services;
+using Ordering.Infraestructure.EventMessage;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Services
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddSignalR();
-builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
+builder.Services.AddSingleton<OrderStorageService>();
+builder.Services.AddSingleton<RabbitMQPublisherService>();
 
-// CORS para Vue / desarrollo
-builder.Services.AddCors(options =>
+// Registrar la conexión RabbitMQ
+builder.Services.AddSingleton<IConnection>(sp =>
 {
-    options.AddPolicy("VueApp", policy =>
+    var factory = new ConnectionFactory
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+        HostName = "host.docker.internal",
+        Port = 5672,
+        UserName = "guest",
+        Password = "guest"
+    };
+    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
 });
 
-// ✅ MASS TRANSIT - UNA SOLA CONFIGURACIÓN
-builder.Services.AddMassTransit(x =>
+// Registrar el consumidor
+builder.Services.AddHostedService<RabbitMQOrderConsumer>();
+
+// Configurar Swagger con más detalles
+builder.Services.AddSwaggerGen(c =>
 {
-    // Registrar consumers
-    x.AddConsumer<OrderCreatedConsumer>();
-    x.AddConsumer<OrderUpdatedConsumer>();
-    x.AddConsumer<OrderDeletedConsumer>();
-    x.AddConsumer<NotificationConsumer>();
-
-    x.UsingRabbitMq((context, cfg) =>
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        cfg.Host("host.docker.internal", "/", h =>
-        {
-            h.Username("guest");
-            h.Password("guest");
-        });
-
-        // ✅ CONFIGURACIÓN GLOBAL PARA JSON PLANO
-        cfg.ClearSerialization();
-        cfg.UseRawJsonSerializer();
-
-        // Configurar opciones JSON
-        cfg.ConfigureJsonSerializerOptions(options =>
-        {
-            options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-            options.PropertyNameCaseInsensitive = true;
-            return options;
-        });
-
-        // Configurar colas específicas
-        cfg.ReceiveEndpoint("order-created-queue", e =>
-        {
-            e.ConfigureConsumer<OrderCreatedConsumer>(context);
-        });
-
-        cfg.ReceiveEndpoint("order-updated-queue", e =>
-        {
-            e.ConfigureConsumer<OrderUpdatedConsumer>(context);
-        });
-
-        cfg.ReceiveEndpoint("order-deleted-queue", e =>
-        {
-            e.ConfigureConsumer<OrderDeletedConsumer>(context);
-        });
-
-        cfg.ReceiveEndpoint("notification-queue", e =>
-        {
-            e.ConfigureConsumer<NotificationConsumer>(context);
-        });
+        Title = "Client Consumer Order API",
+        Version = "v1",
+        Description = "API para consumir órdenes desde RabbitMQ"
     });
+
+    // Incluir comentarios XML (opcional)
+    // var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    // c.IncludeXmlComments(xmlPath);
 });
 
 var app = builder.Build();
 
-// Pipeline
+// Configurar el pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Client Consumer Order API v1");
+        c.RoutePrefix = string.Empty; // Hace que Swagger esté en la raíz: http://localhost:8000/
+    });
+}
+else
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Client Consumer Order API v1");
+        c.RoutePrefix = "swagger"; // En producción: http://localhost:8000/swagger
+    });
 }
 
-app.UseCors("VueApp");
-app.UseHttpsRedirection();
 app.UseAuthorization();
-
 app.MapControllers();
-app.MapHub<NotificationHub>("/notifications");
-app.MapGet("/health", () => "Healthy");
 
 app.Run();
